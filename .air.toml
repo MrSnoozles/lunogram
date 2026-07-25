@@ -1,0 +1,41 @@
+# Live-reload configuration for the Go API (`make dev-api`, or `make dev`).
+# Reference: https://github.com/air-verse/air
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o ./tmp/lunogram ./cmd/lunogram"
+  bin = "./tmp/lunogram"
+  # Migrations (.sql) and integration modules (.wasm) are embedded into the
+  # binary, so a change to either needs a rebuild just like a .go change.
+  include_ext = ["go", "sql", "wasm"]
+  # `modules/` holds the WASM guest sources, which are separate Go modules
+  # built by `make modules` — they never affect the host binary directly.
+  # `console/` and `docs/` have their own dev servers.
+  exclude_dir = [
+    "bin",
+    "build",
+    "console",
+    "docs",
+    "licenses",
+    "modules",
+    "node_modules",
+    "renderer",
+    "tmp",
+    "uploads",
+  ]
+  exclude_regex = ["_test\\.go", "_mock_test\\.go"]
+  exclude_unchanged = true
+  follow_symlink = false
+  delay = 500
+  # Keep the last good binary running when a build fails so the console
+  # dev server does not lose its API mid-edit.
+  stop_on_error = true
+  send_interrupt = true
+  kill_delay = "5s"
+
+[log]
+  time = true
+
+[misc]
+  clean_on_exit = true

@@ -34,54 +34,59 @@ The app will be available at http://localhost:8080.
 
 ### Option 2: Local Development (Recommended for Development)
 
-Run the Go backend and console locally for faster iteration:
-
-#### 1. Start Dependencies
-
-First, start the required services (PostgreSQL, Redis, NATS):
+Run the Go backend and console on your machine with live reloading, and only
+the backing services in Docker:
 
 ```bash
-docker compose -f docker-compose.deps.yml up -d
+cp .env.example .env
+cp console/.env.example console/.env
+
+make dev
 ```
 
-#### 2. Run the Console (Frontend)
+That single command starts everything:
 
-In a separate terminal:
+| Component | Where | Reload behaviour |
+| --- | --- | --- |
+| Postgres, Redis, NATS | Docker (`docker-compose.dev.yml`) | — |
+| Renderer (Deno, React Email) | Docker, bind-mounted | restarts on `renderer/*.ts` changes |
+| Go API — http://localhost:8080 | host, via [air](https://github.com/air-verse/air) | rebuilds on `.go`, `.sql`, `.wasm` changes |
+| Console — http://localhost:5173 | host, via Vite | hot module replacement |
+
+Open **http://localhost:5173** — the Vite dev server proxies `/api` to the Go
+API, so you get hot reloading for the frontend and a live backend behind it.
+
+`Ctrl-C` stops the API and console but leaves the Docker services running so
+the next start is fast. Stop them with `make dev-down`.
+
+Individual pieces can be run on their own:
 
 ```bash
-cd console
-pnpm install
-pnpm dev
+make dev-services   # only Postgres, Redis, NATS and the renderer
+make dev-api        # only the Go API (live reload)
+make dev-console    # only the console dev server
+make dev-logs       # tail the Docker service logs
 ```
 
-The console will be available at http://localhost:5173.
-
-#### 3. Run the Go Backend
-
-In another terminal:
+Building the WASM provider/action modules is a separate, slower step that is
+only needed when you touch `modules/`:
 
 ```bash
-# Install dependencies and build
-make generate
-
-# Run the server
-go run ./cmd/lunogram
+make modules
 ```
-
-The API will be available at http://localhost:8080.
 
 ### Environment Variables
 
+The Go binary reads its configuration from the process environment; it does
+**not** load a `.env` file itself. `make dev` exports the repository's `.env`
+before starting the API, so copy the example and edit from there:
+
 ```bash
-MANAGEMENT_POSTGRES_URI=postgres://postgres:postgrespw@localhost:5432/management?sslmode=disable
-USERS_POSTGRES_URI=postgres://postgres:postgrespw@localhost:5432/users?sslmode=disable
-JOURNEY_POSTGRES_URI=postgres://postgres:postgrespw@localhost:5432/journey?sslmode=disable
-REDIS_ADDRESS=redis://localhost:6379
-NATS_URL=nats://localhost:4222
-AUTH_DRIVER=basic
-AUTH_BASIC_EMAIL=admin@localhost
-AUTH_BASIC_PASSWORD=admin
+cp .env.example .env
 ```
+
+See [`.env.example`](.env.example) for the variables used in local development
+and [`internal/config/config.go`](internal/config/config.go) for the full set.
 
 ## How to Contribute
 

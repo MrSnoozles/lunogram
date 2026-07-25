@@ -42,6 +42,9 @@ $(BIN)/oapi-codegen: | $(BIN) ; $(info $(M) building oapi-codegen v2.7.0…)
 $(BIN)/tailwindcss: | $(BIN) ; $(info $(M) building tailwindcss…)
 	$Q ./etc/install-tailwindcss.sh $(BIN)
 
+$(BIN)/air: | $(BIN) ; $(info $(M) building air v1.67.2…)
+	$Q GOBIN=$(BIN) $(GO) install github.com/air-verse/air@v1.67.2
+
 $(EMBEDDED):
 	$Q mkdir -p $(shell dirname $@)
 	$Q touch $@
@@ -74,6 +77,31 @@ console: ; $(info $(M) building console…)
 	$Q cd console && $(PNPM) run build
 	$Q rm -rf internal/http/console/dist/*
 	$Q cp -r console/dist/* internal/http/console/dist/
+
+# Development
+.PHONY: dev
+dev: | $(BIN)/air ; $(info $(M) starting development stack…) @ ## Run the full stack locally with live reloading
+	$Q ./etc/dev.sh
+
+.PHONY: dev-api
+dev-api: | $(BIN)/air ; $(info $(M) starting api…) @ ## Run only the Go API with live reloading
+	$Q ./etc/dev.sh api
+
+.PHONY: dev-console
+dev-console: ; $(info $(M) starting console…) @ ## Run only the console dev server
+	$Q ./etc/dev.sh console
+
+.PHONY: dev-services
+dev-services: ; $(info $(M) starting backing services…) @ ## Start Postgres, Redis, NATS and the renderer
+	$Q docker compose -f docker-compose.dev.yml up -d --wait
+
+.PHONY: dev-down
+dev-down: ; $(info $(M) stopping backing services…) @ ## Stop the backing services
+	$Q docker compose -f docker-compose.dev.yml down
+
+.PHONY: dev-logs
+dev-logs: ; @ ## Tail the backing service logs
+	$Q docker compose -f docker-compose.dev.yml logs -f
 
 # Targets
 .PHONY: lint

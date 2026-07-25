@@ -1,0 +1,35 @@
+# Development stack: everything the Go API and the console need to run,
+# but *not* the API or console themselves — those run on the host with live
+# reloading (see `etc/dev.sh` / `make dev`).
+#
+#   docker compose -f docker-compose.dev.yml up -d --wait
+#
+# On top of docker-compose.deps.yml this adds the Deno renderer, which the
+# email template editor depends on: it answers `email.compile.>` and
+# `email.render.>` over NATS. It runs from a bind mount in watch mode, so
+# edits under renderer/ reload the service.
+include:
+  - docker-compose.deps.yml
+
+services:
+  renderer:
+    # Same Deno version as renderer/Dockerfile, so dev and prod resolve the
+    # same runtime. `--no-lock` is needed because the committed deno.lock is
+    # format v5, which 2.2.6 cannot read; the production image sidesteps this
+    # by never copying deno.lock, so ignoring it here matches prod behaviour.
+    image: denoland/deno:2.2.6
+    working_dir: /app
+    command: ["run", "--watch", "--allow-net", "--allow-env", "--no-lock", "main.ts"]
+    environment:
+      NATS_URL: nats://nats:4222
+    volumes:
+      - ./renderer:/app
+      - renderer_cache:/deno-dir
+    depends_on:
+      nats:
+        condition: service_started
+    networks:
+      - app_network
+
+volumes:
+  renderer_cache:

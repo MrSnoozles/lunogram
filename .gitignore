@@ -108,4 +108,7 @@ dist
 bin/
 build/
 
+# air live-reload build output (see .air.toml)
+tmp/
+
 uploads/documents/
