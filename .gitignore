@@ -112,3 +112,6 @@ build/
 tmp/
 
 uploads/documents/
+
+# Local agent tooling (fork-only; not part of the upstream project)
+.gstack/
