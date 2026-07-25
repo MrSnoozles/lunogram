@@ -19,5 +19,7 @@ COPY --from=build --chown=1993:1993 /deno-dir/ /deno-dir/
 
 USER 1993
 
-# Run with minimal permissions: only network access to NATS and env vars
-CMD ["run", "--allow-net", "--allow-env=NATS_URL", "main.ts"]
+# Run with minimal permissions. Beyond network and env, mjml needs homedir and
+# a readable working directory: it resolves a config path via env-paths on
+# import and stats its `filePath` option before parsing.
+CMD ["run", "--allow-net", "--allow-env=NATS_URL,TEMPLATICAL_SOCIAL_ICONS_BASE_URL", "--allow-sys=homedir", "--allow-read=/app", "main.ts"]

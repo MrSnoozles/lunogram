@@ -19,7 +19,19 @@ services:
     # by never copying deno.lock, so ignoring it here matches prod behaviour.
     image: denoland/deno:2.2.6
     working_dir: /app
-    command: ["run", "--watch", "--allow-net", "--allow-env", "--no-lock", "main.ts"]
+    # Permissions mirror renderer/Dockerfile; mjml needs homedir and a readable
+    # working directory on top of network and env access.
+    command:
+      [
+        "run",
+        "--watch",
+        "--allow-net",
+        "--allow-env",
+        "--allow-sys=homedir",
+        "--allow-read",
+        "--no-lock",
+        "main.ts",
+      ]
     environment:
       NATS_URL: nats://nats:4222
     volumes:
