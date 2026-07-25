@@ -14,7 +14,8 @@ Each phase below is a separate branch and a separate PR, cut from
 | --- | --- | --- |
 | 1 — renderer second path | `feat/templatical-renderer` | **done**, pushed |
 | 2 — Go template type | `feat/templatical-template-type` | **done**, pushed |
-| 3+ — console editor | `feat/templatical-editor` | not started |
+| 3 — console editor | `feat/templatical-editor` | **done**, pushed |
+| 4 — feature wiring | `feat/templatical-editor` | **mostly done**, pushed |
 
 Each branch is stacked on the previous one, so a phase can be reviewed with
 only its own diff. Rebase down the stack as earlier PRs land.
@@ -203,7 +204,7 @@ and any literal `{{ }}` in user-authored text.
 per type, the clearing behaviour, and the untyped-fallback path; all four
 template controller tests pass; the full `management` package passes in 309s.
 
-## Phase 3 — Console: mount the editor in `blocks` mode
+## Phase 3 — Console: mount the editor in `blocks` mode — DONE
 
 **Files:** new `console/src/views/campaign/template/mail/editor/blockEditor/`,
 plus `useEditorMode.ts`, `CodeEditor.tsx`, `NewCampaign.tsx`, `Template.tsx`,
@@ -271,7 +272,7 @@ Templatical with an empty document (no JSX seeded) → drag blocks → save →
 reopen and the document round-trips → preview shows the rendered email. Adding
 a second locale keeps the same editor without asking again.
 
-## Phase 4 — Feature wiring
+## Phase 4 — Feature wiring — MOSTLY DONE
 
 1. **Merge tags** — configure Templatical's merge-tag syntax to `{{ }}` and
    populate the picker from the project's user/event schema (the console
@@ -283,7 +284,19 @@ a second locale keeps the same editor without asking again.
    text, honouring the existing custom-override behaviour
    (`plaintext.custom` wins).
 4. **Test send** — confirm `useSendTestEmail` works unchanged on this path.
-5. **Starter templates** — `EmailTemplate` in `console/src/types.ts` already
+**Done:** merge tags (campaign variables mapped to the picker, liquid syntax,
+object/array variables dropped), media library (the editor's Browse Media
+opens Lunogram's own manager via a promise bridge), plain text (Preview Text
+tab reads the backend-derived text from the bundle), and a Preview tab that
+resolves merge tags against the recipient chosen in the toolbar.
+
+**Known limitation:** the Preview and Preview Text panels, and the campaign
+detail preview, all read the bundle — which the backend writes on save. They
+therefore reflect the last save, not unsaved edits. Live preview would mean
+rendering MJML client-side; decide before promising it.
+
+**Still open:** send test on this path is unverified end to end, and starter
+templates are untouched — `EmailTemplate` in `console/src/types.ts` already
    carries an optional `blocks` field, and the gallery is fed by the
    `WEBHOOK_EMAIL_TEMPLATES_URL` endpoint. Decide whether to ship starter
    Templatical documents.
