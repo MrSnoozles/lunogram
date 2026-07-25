@@ -53,8 +53,18 @@ Branches in flight:
 
 | Branch | Contents | Status |
 | --- | --- | --- |
-| `feat/dev-environment` | Live-reload dev setup, corrected env-var docs | ready to PR |
+| `feat/dev-environment` | Live-reload dev setup, corrected env-var docs | pushed, ready to PR |
+| `feat/templatical-renderer` | Phase 1 — MJML render path in `renderer/` | pushed, ready to PR |
+| `feat/templatical-template-type` | Phase 2 — Go template-type discrimination | in progress |
 | `main` (fork-local) | Agent docs and the integration plan | never PR'd |
+
+Branches are **stacked**: each is cut from the previous one, so a reviewer sees
+only that phase's diff. Rebase down the stack as earlier PRs land.
+
+**This fork does not build the enterprise edition** (confirmed 2026-07-25).
+Enterprise-gated seams (`isEnterprise`, `@lunogram-enterprise/*`, the
+`enterprise` build tag) can be treated as dead code here — the `blocks` editor
+mode is free to be Templatical outright.
 
 ## Stack and layout
 

@@ -10,11 +10,14 @@ branching rules)
 Each phase below is a separate branch and a separate PR, cut from
 `upstream/main`:
 
-| Phase | Branch |
-| --- | --- |
-| 1 — renderer second path | `feat/templatical-renderer` |
-| 2 — Go template type | `feat/templatical-template-type` |
-| 3+ — console editor | `feat/templatical-editor` |
+| Phase | Branch | Status |
+| --- | --- | --- |
+| 1 — renderer second path | `feat/templatical-renderer` | **done**, pushed |
+| 2 — Go template type | `feat/templatical-template-type` | in progress |
+| 3+ — console editor | `feat/templatical-editor` | not started |
+
+Each branch is stacked on the previous one, so a phase can be reviewed with
+only its own diff. Rebase down the stack as earlier PRs land.
 
 ## Goal
 
@@ -139,32 +142,39 @@ where its `{{ }}` contents would otherwise be misinterpreted — the same reason
 
 ---
 
-## Phase 1 — Renderer: second render path
+## Phase 1 — Renderer: second render path — DONE
 
-Backend only, no UI. Provable in isolation by writing a Templatical document
-into a template row by hand.
+Shipped on `feat/templatical-renderer`. Zero Go changes, zero wire-format
+changes. New file `renderer/templatical.ts`; branches in `renderer/compiler.ts`;
+`renderer/compiler_test.ts` covers both paths.
 
-**Files:** `renderer/compiler.ts`, `renderer/main.ts`, `renderer/deno.json`
+**Rendering happens at compile time, not per render.** This deviates from the
+original sketch. Templatical output depends only on the document — merge tags
+survive as literal `{{ … }}` for the downstream Liquid pass, so props cannot
+affect the result. The bundle is therefore
+`{ kind: "templatical", html, plainText }` and `renderTemplate` just returns it.
+Rendering per call would have re-run MJML once per recipient.
 
-1. Add imports: `@templatical/renderer`, `@templatical/types`, `mjml`,
-   and an HTML → text converter for plain text (`@react-email/render` already
-   pulls `html-to-text` transitively; use it directly).
-2. `compile(source)` — attempt `JSON.parse`; if the result has `blocks` and
-   `settings`, treat it as a Templatical document and return
-   `JSON.stringify({ kind: "templatical", doc })`. Otherwise fall through to
-   the existing Sucrase path unchanged.
-3. `renderTemplate(bundle, props)` — parse the bundle; on
-   `kind === "templatical"`, run `renderToMjml(doc, options)` → `await mjml2html(...)`
-   → HTML, and derive plain text. Otherwise the existing path.
-4. Pass `socialIconsBaseUrl` in `RenderOptions` so social icons are served from
-   Lunogram rather than the default jsDelivr CDN (see Risks).
-5. Decide what `props` means on this path — Templatical merge tags resolve via
-   Liquid downstream, so props may be a no-op here.
+Three things found while building it, all now handled:
 
-**Acceptance:** a template row whose `data.code.source` holds a Templatical
-document renders to correct HTML through the existing preview endpoint, with
-merge tags surviving as `{{ … }}`. Existing JSX templates are byte-identical
-to before.
+- **`html-to-text` uppercases headings by default**, turning a merge tag in a
+  heading into `{{ USER.FIRST_NAME }}` — which Liquid cannot resolve, so the
+  raw tag would ship in the text part of every email. Disabled for `h1`–`h6`.
+- **mjml needs permissions the service never granted**: `--allow-sys=homedir`
+  (env-paths, read on import) and `--allow-read` (it stats its `filePath`
+  option before parsing). Without them the service dies on first render. Added
+  to `renderer/Dockerfile`, the `deno.json` tasks, and `docker-compose.dev.yml`.
+- **Social icons really do point at jsDelivr.** `TEMPLATICAL_SOCIAL_ICONS_BASE_URL`
+  overrides the base URL; hosting the assets is still Phase 5.
+
+**Verified:** 5/5 tests pass inside the production image, and a NATS round trip
+against the running service returns `kind = templatical`, 6.2 KB of HTML with
+merge tags, images and Outlook conditionals intact.
+
+Pre-existing issues left alone: `deno.json` has a react/react-dom version skew
+(react 18.3.1 vs react-dom 19.x via `@react-email/render`'s caret range) that
+trips React's isomorphic check under `deno test` but not under `deno run`;
+`deno fmt` would reformat untouched lines in `compiler.ts` and `main.ts`.
 
 **Test:** a fixture document + snapshot, run under `deno task test`.
 
@@ -286,22 +296,22 @@ a second locale keeps the same editor without asking again.
 
 ---
 
-## Open decisions
+## Decisions
 
-1. **The `jsxSource` argument.** `handleBlocksChange(doc, jsxSource)` assumes
-   the block editor emits JSX, which is true for the enterprise block editor
-   but not for Templatical. Either change the signature for the OSS
-   implementation (cleanest — the JSX is meaningless here), or pass the MJML
-   string in that slot and treat it as "the compiled representation". Affects
-   whether the enterprise block editor can coexist unchanged.
-2. **Coexistence with `@lunogram-enterprise/block-editor`.** If this fork never
-   builds the enterprise edition, `blocks` can simply *be* Templatical. If
-   enterprise parity matters, the two implementations need distinct modes or a
-   build-time swap.
-3. **Where the document is stored** — `data.code.source` (zero-touch) vs a
-   promoted `data.blocks` (cleaner). Phase 2.
-4. **Does `code` mode stay?** Assumed yes — keeping React Email available means
-   existing templates and power users are unaffected.
+1. **No enterprise edition.** This fork does not build it (confirmed
+   2026-07-25), so `blocks` can simply *be* Templatical. No coexistence with
+   `@lunogram-enterprise/block-editor` is required, and there is no need for a
+   fourth editor mode or a build-time swap.
+2. **`handleBlocksChange` loses its `jsxSource` argument.** It exists only
+   because the enterprise block editor emits JSX. Templatical does not, and
+   with (1) settled the signature is ours to change — the argument would carry
+   nothing meaningful. Narrow it to `handleBlocksChange(doc)`.
+3. **The document lives in `data.blocks`, keyed by `data.type`.** Phase 2. The
+   alternative — stashing it in `data.code.source` — needs no Go changes at all
+   but puts a JSON document in a field named "source" that means JSX
+   everywhere else.
+4. **`code` mode stays.** Keeping React Email available means existing
+   templates and power users are unaffected.
 
 ## Risks
 
