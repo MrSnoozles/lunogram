@@ -13,7 +13,7 @@ Each phase below is a separate branch and a separate PR, cut from
 | Phase | Branch | Status |
 | --- | --- | --- |
 | 1 — renderer second path | `feat/templatical-renderer` | **done**, pushed |
-| 2 — Go template type | `feat/templatical-template-type` | in progress |
+| 2 — Go template type | `feat/templatical-template-type` | **done**, pushed |
 | 3+ — console editor | `feat/templatical-editor` | not started |
 
 Each branch is stacked on the previous one, so a phase can be reviewed with
@@ -178,25 +178,30 @@ trips React's isomorphic check under `deno test` but not under `deno run`;
 
 **Test:** a fixture document + snapshot, run under `deno task test`.
 
-## Phase 2 — Go: explicit template-type discrimination
+## Phase 2 — Go: explicit template-type discrimination — DONE
 
-Phase 1 works with **zero Go changes** if the Templatical document is stored in
-`data.code.source`, because both gates (`templates.go:261`
-`if envelope.Code.Source != ""` and `email.go:70`
-`if email.Code.Source == "" && email.Code.Bundle == ""`) simply pass. That is
-fine for a spike but abuses a field named "source" for JSX.
+Shipped on `feat/templatical-template-type`.
 
-Formalise it:
+`EmailTemplateData` gains `type` (`""`/`"react-email"` → JSX, `"templatical"` →
+visual document) and `blocks`. A new `CompileSource()` method picks the source
+by type, and both compile call sites use it —
+`internal/http/controllers/v1/management/templates.go` on save (via
+`templateDataEnvelope.compileSource()`, which reads `type` and `blocks` out of
+the untyped `Remaining` map) and `internal/providers/channels/email.go` on send.
+Both previously gated on `code.source` being non-empty and would have skipped a
+Templatical template outright. The console types and the Zod schema were
+widened to match.
 
-1. Add a document type discriminator to `EmailTemplateData` on both sides
-   (`internal/providers/channels/email.go`, `console/src/types.ts`) — the TS
-   type already has `type?: "react-email"` to extend.
-2. Widen the two gates to accept a Templatical template with no JSX source.
-3. Decide where the document lives: keep it in `code.source`, or promote
-   `data.blocks` to the canonical field and pass it as the compile source.
+**`email.Blocks` must be cleared after rendering**, alongside `email.Code`.
+Before this phase the Go struct had no `blocks` field, so the
+unmarshal → marshal round-trip dropped the document by accident. Adding the
+field removed that protection: the composed payload goes to
+`render.RenderJSON`, which walks the whole JSON and would evaluate merge tags
+and any literal `{{ }}` in user-authored text.
 
-**Acceptance:** a Templatical template compiles on save and renders on send
-without relying on `code.source` being non-empty.
+**Verified:** new tests in `email_templatical_test.go` cover source selection
+per type, the clearing behaviour, and the untyped-fallback path; all four
+template controller tests pass; the full `management` package passes in 309s.
 
 ## Phase 3 — Console: mount the editor in `blocks` mode
 

@@ -55,7 +55,8 @@ Branches in flight:
 | --- | --- | --- |
 | `feat/dev-environment` | Live-reload dev setup, corrected env-var docs | pushed, ready to PR |
 | `feat/templatical-renderer` | Phase 1 — MJML render path in `renderer/` | pushed, ready to PR |
-| `feat/templatical-template-type` | Phase 2 — Go template-type discrimination | in progress |
+| `feat/templatical-template-type` | Phase 2 — Go template-type discrimination | pushed, ready to PR |
+| `feat/templatical-editor` | Phase 3 — console editor | not started |
 | `main` (fork-local) | Agent docs and the integration plan | never PR'd |
 
 Branches are **stacked**: each is cut from the previous one, so a reviewer sees
